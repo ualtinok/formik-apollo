@@ -1,6 +1,6 @@
 import { GraphQLError } from "graphql";
 import { ApolloError, isApolloError } from "apollo-client";
-import { Problems, ValidationError } from "./types";
+import { Problems, ValidationError, UserInputError } from "./types";
 
 const isString = (value: any) => typeof value === "string";
 const isObject = (value: any) => value && typeof value === "object";
@@ -9,6 +9,11 @@ const isObject = (value: any) => value && typeof value === "object";
  * Indicates that an error is a validation error.
  */
 export const VALIDATION_ERROR = "VALIDATION_ERROR";
+
+/**
+ * Indicates that an error is a bad user input error.
+ */
+export const BAD_USER_INPUT = "BAD_USER_INPUT";
 
 /**
  * Create a validation error. Useful for testing.
@@ -31,6 +36,27 @@ export const createValidationError = (message: string, problems: Problems) => {
 };
 
 /**
+ * Create a bad user input error. Useful for testing.
+ */
+
+export const createBadUserInputError = (message: string, problems: Problems) => {
+  const gqlError = new GraphQLError(
+      message,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { code: BAD_USER_INPUT, problems }
+  );
+
+  return new ApolloError({
+    errorMessage: message,
+    graphQLErrors: [gqlError]
+  });
+};
+
+/**
  * Get the code for an error.
  */
 export const getErrorCode = (error: Error): string | undefined =>
@@ -39,13 +65,13 @@ export const getErrorCode = (error: Error): string | undefined =>
   error.extensions!.code;
 
 /**
- * Is the error a validation error?
+ * Is the error a formik handled error?
  */
-export const isValidationError = (error: any): error is ValidationError =>
+export const isHandledError = (error: any, errorType: string): error is (ValidationError | UserInputError) =>
   isObject(error) &&
   isObject(error.extensions) &&
   isObject(error.extensions!.problems) &&
-  error.extensions!.code === VALIDATION_ERROR;
+  error.extensions!.code === errorType;
 
 /**
  * Get the form status based on an error.
@@ -67,7 +93,7 @@ export const getValidationErrors = (
     );
   }
 
-  if (error && isValidationError(error)) {
+  if (error && (isHandledError(error, VALIDATION_ERROR) || isHandledError(error, BAD_USER_INPUT))) {
     return Object.entries(error.extensions.problems).reduce(
       (acc, [key, value]) => {
         const message = Array.isArray(value) ? value[0] : value;

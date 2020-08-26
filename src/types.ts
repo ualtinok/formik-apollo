@@ -14,6 +14,13 @@ export interface ValidationError extends GraphQLError {
 }
 
 /**
+ * A `GraphQLError` instance that looks like a user input error.
+ */
+export interface UserInputError extends GraphQLError {
+  extensions: { problems: Problems };
+}
+
+/**
  * The function that is called when the form is submitted.
  */
 export type SubmitHandler<T, R> = (
